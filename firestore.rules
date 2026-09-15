@@ -1,0 +1,206 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function bootstrapAdmin() {
+      return signedIn() && request.auth.token.email == 'kawsarhn1@gmail.com';
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function memberPath(memberId) {
+      return /databases/$(database)/documents/members/$(memberId);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function myProfile() {
+      return get(userPath(request.auth.uid)).data;
+    }
+
+    function myMemberIsActive() {
+      return hasProfile()
+        && exists(memberPath(myProfile().memberId))
+        && get(memberPath(myProfile().memberId)).data.active == true;
+    }
+
+    function isAdmin() {
+      return bootstrapAdmin() || (hasProfile() && myProfile().role == 'admin');
+    }
+
+    function monthPath(monthId) {
+      return /databases/$(database)/documents/months/$(monthId);
+    }
+
+    function monthIsOpen(monthId) {
+      return exists(monthPath(monthId)) && get(monthPath(monthId)).data.status == 'open';
+    }
+
+    match /system/{documentId} {
+      allow read: if bootstrapAdmin() || hasProfile();
+      allow create, update: if bootstrapAdmin();
+      allow delete: if false;
+    }
+
+    match /claimSlots/{memberId} {
+      allow read: if signedIn();
+      allow create: if isAdmin();
+
+      allow update: if isAdmin() || (
+        signedIn()
+        && resource.data.active == true
+        && resource.data.claimedByUid == null
+        && resource.data.claimedByEmail == null
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['claimedByUid', 'claimedByEmail', 'claimedAt'])
+        && request.resource.data.claimedByUid == request.auth.uid
+        && request.resource.data.claimedByEmail == request.auth.token.email
+        && getAfter(userPath(request.auth.uid)).data.memberId == memberId
+        && getAfter(userPath(request.auth.uid)).data.email == request.auth.token.email
+      );
+
+      allow delete: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (uid == request.auth.uid || isAdmin());
+
+      allow create: if signedIn()
+        && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['email', 'memberId', 'role', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && (
+          (
+            bootstrapAdmin()
+            && request.resource.data.role == 'admin'
+            && request.resource.data.memberId == 'kawchar'
+          )
+          ||
+          (
+            request.resource.data.role == 'member'
+            && getAfter(/databases/$(database)/documents/claimSlots/$(request.resource.data.memberId)).data.claimedByUid == uid
+            && getAfter(/databases/$(database)/documents/claimSlots/$(request.resource.data.memberId)).data.claimedByEmail == request.auth.token.email
+          )
+        );
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin() && uid != request.auth.uid;
+    }
+
+    match /members/{memberId} {
+      allow read: if bootstrapAdmin() || hasProfile();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /months/{monthId} {
+      allow read: if bootstrapAdmin() || hasProfile();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if hasProfile();
+
+      allow create: if myMemberIsActive()
+        && monthIsOpen(request.resource.data.monthId)
+        && request.resource.data.keys().hasOnly([
+          'date', 'monthId', 'type', 'category', 'amount', 'note',
+          'ownerUid', 'memberId', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberId == myProfile().memberId
+        && request.resource.data.type in ['bazar', 'utility']
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+
+      allow update: if monthIsOpen(resource.data.monthId)
+        && (isAdmin() || (myMemberIsActive() && resource.data.ownerUid == request.auth.uid))
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.memberId == resource.data.memberId
+        && request.resource.data.monthId == resource.data.monthId
+        && request.resource.data.type in ['bazar', 'utility']
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+
+      allow delete: if monthIsOpen(resource.data.monthId)
+        && (isAdmin() || (myMemberIsActive() && resource.data.ownerUid == request.auth.uid));
+    }
+
+    // Legacy delta records are kept readable so existing September data remains valid.
+    match /mealAdjustments/{adjustmentId} {
+      allow read: if hasProfile();
+      allow create: if myMemberIsActive()
+        && monthIsOpen(request.resource.data.monthId)
+        && request.resource.data.keys().hasOnly([
+          'date', 'monthId', 'adjustment', 'note',
+          'ownerUid', 'memberId', 'createdAt'
+        ])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberId == myProfile().memberId
+        && request.resource.data.adjustment is int
+        && request.resource.data.adjustment != 0
+        && request.resource.data.adjustment >= -20
+        && request.resource.data.adjustment <= 20;
+      allow update, delete: if false;
+    }
+
+    match /mealOverrides/{overrideId} {
+      allow read: if hasProfile();
+
+      allow create: if hasProfile()
+        && monthIsOpen(request.resource.data.monthId)
+        && request.resource.data.keys().hasOnly([
+          'date', 'monthId', 'count', 'memberId', 'updatedByUid', 'updatedAt'
+        ])
+        && request.resource.data.count is int
+        && request.resource.data.count >= 0
+        && request.resource.data.count <= 20
+        && request.resource.data.updatedByUid == request.auth.uid
+        && (isAdmin() || (myMemberIsActive() && request.resource.data.memberId == myProfile().memberId));
+
+      allow update: if monthIsOpen(resource.data.monthId)
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.monthId == resource.data.monthId
+        && request.resource.data.memberId == resource.data.memberId
+        && request.resource.data.count is int
+        && request.resource.data.count >= 0
+        && request.resource.data.count <= 20
+        && request.resource.data.updatedByUid == request.auth.uid
+        && (isAdmin() || (myMemberIsActive() && resource.data.memberId == myProfile().memberId));
+
+      allow delete: if monthIsOpen(resource.data.monthId)
+        && (isAdmin() || (myMemberIsActive() && resource.data.memberId == myProfile().memberId));
+    }
+
+    match /mealDays/{dateId} {
+      allow read: if hasProfile();
+
+      allow create: if myMemberIsActive()
+        && monthIsOpen(request.resource.data.monthId)
+        && request.resource.data.keys().hasOnly([
+          'date', 'monthId', 'messOff', 'updatedByUid', 'updatedByMemberId', 'updatedAt'
+        ])
+        && request.resource.data.messOff is bool
+        && request.resource.data.updatedByUid == request.auth.uid
+        && request.resource.data.updatedByMemberId == myProfile().memberId;
+
+      allow update: if myMemberIsActive()
+        && monthIsOpen(resource.data.monthId)
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.monthId == resource.data.monthId
+        && request.resource.data.messOff is bool
+        && request.resource.data.updatedByUid == request.auth.uid
+        && request.resource.data.updatedByMemberId == myProfile().memberId;
+
+      allow delete: if false;
+    }
+  }
+}
