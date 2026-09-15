@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mess-manager-v2.2';
+const CACHE_NAME = 'hisab-v1.1';
 const APP_ASSETS = [
   '/',
   '/index.html',
