@@ -60,8 +60,6 @@ A member can set a personal meal count for any date in an open month. If the val
 
 A global **Mess Off** day sets the effective meal count to `0` for every member. Personal overrides are preserved underneath, so they become active again if Mess Off is cancelled.
 
-Historical `mealAdjustments` records are still readable for backward compatibility. New meal changes are stored as absolute `mealOverrides`.
-
 ## Monthly lifecycle
 
 Each month is stored independently.
@@ -243,7 +241,6 @@ months
 expenses
 mealOverrides
 mealDays
-mealAdjustments   # legacy compatibility
 ```
 
 Important behavior:
