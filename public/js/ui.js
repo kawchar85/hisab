@@ -85,7 +85,7 @@ function currentMember(state) {
 }
 
 function emptyMonthData() {
-  return { expenses: [], adjustments: [], overrides: [], mealDays: [] };
+  return { expenses: [], overrides: [], mealDays: [] };
 }
 
 function monthDataFor(state, monthId) {
@@ -113,7 +113,7 @@ function homePage(state) {
   const myRow = settlement.rows.find(row => row.memberId === state.profile.memberId);
   const today = todayISO();
   const offToday = isMessOff(today, data.mealDays);
-  const todayMeals = mealsForMemberOnDate(state.profile.memberId, today, month, data.overrides, data.mealDays, data.adjustments);
+  const todayMeals = mealsForMemberOnDate(state.profile.memberId, today, month, data.overrides, data.mealDays);
   const isOpen = month.status === 'open';
 
   return `<section class="page home-page">
@@ -192,9 +192,9 @@ function calendarCells(state, month, data) {
   const days = Array.from({ length: daysCount }, (_, idx) => `${month.id}-${String(idx + 1).padStart(2, '0')}`);
   return leading + days.map(date => {
     const off = isMessOff(date, data.mealDays);
-    const count = mealsForMemberOnDate(memberId, date, month, data.overrides, data.mealDays, data.adjustments);
-    const base = baselineMealCount(memberId, date, month, data.adjustments);
-    const personal = personalMealCountOnDate(memberId, date, month, data.overrides, data.adjustments);
+    const count = mealsForMemberOnDate(memberId, date, month, data.overrides, data.mealDays);
+    const base = baselineMealCount(memberId, date, month);
+    const personal = personalMealCountOnDate(memberId, date, month, data.overrides);
     const custom = personal !== base;
     return `<button class="day-cell ${date === today ? 'today' : ''} ${off ? 'off' : ''}" data-action="adjust-date" data-date="${date}" data-month-id="${month.id}" ${month.status !== 'open' ? 'disabled' : ''}><span>${Number(date.slice(8))}</span><strong>${off ? 'OFF' : count}</strong>${custom && !off ? '<small>set</small>' : '<small>&nbsp;</small>'}</button>`;
   }).join('');
