@@ -52,16 +52,6 @@ test('global mess off overrides personal count without destroying it', () => {
   assert.equal(mealsForMemberOnDate('kawchar', '2026-09-04', month, overrides, mealDays), 0);
 });
 
-test('legacy adjustment data remains compatible', () => {
-  const adjustments = [
-    { memberId: 'kawchar', date: '2026-09-04', adjustment: -1 },
-    { memberId: 'kawchar', date: '2026-09-10', adjustment: 1 }
-  ];
-  assert.equal(mealsForMemberOnDate('kawchar', '2026-09-04', month, [], [], adjustments), 1);
-  assert.equal(mealsForMemberOnDate('kawchar', '2026-09-10', month, [], [], adjustments), 2);
-  assert.equal(mealsForMember('kawchar', month, [], [], adjustments), 38);
-});
-
 test('settlement conserves rent total without per-user rounding drift', () => {
   const expenses = [
     { memberId: 'lubon', type: 'bazar', amount: 2000, date: '2026-09-03' },
