@@ -1,4 +1,4 @@
-# Mess Manager v2 Plan
+# Hisab Plan
 
 ## Product rules
 
@@ -20,7 +20,6 @@
 - Setting a date back to its default removes the override.
 - Any active member can mark a date `Mess Off` for everyone.
 - `Mess Off` makes the effective count 0 for every member but preserves personal overrides underneath, so they return if Mess Off is cancelled.
-- Legacy `mealAdjustments` remain readable for backward compatibility; new writes use `mealOverrides`.
 
 ## Expenses
 
@@ -56,4 +55,3 @@
 - `expenses`
 - `mealOverrides`
 - `mealDays`
-- `mealAdjustments` — legacy read compatibility
