@@ -171,14 +171,12 @@ function snapItems(snap) {
 export function subscribeMonthData(db, monthId, callback, onError) {
   const specs = [
     ['expenses', 'expenses'],
-    ['mealAdjustments', 'adjustments'],
     ['mealOverrides', 'overrides'],
     ['mealDays', 'mealDays']
   ];
-  const state = { expenses: [], adjustments: [], overrides: [], mealDays: [] };
+  const state = { expenses: [], overrides: [], mealDays: [] };
   const emit = () => callback({
     expenses: [...state.expenses].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0)),
-    adjustments: [...state.adjustments].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0)),
     overrides: [...state.overrides].sort((a, b) => b.date.localeCompare(a.date)),
     mealDays: [...state.mealDays].sort((a, b) => b.date.localeCompare(a.date))
   });
@@ -352,13 +350,12 @@ export async function adminUnclaimMember(db, slot) {
 }
 
 export async function loadMonthDataOnce(db, monthId) {
-  const names = ['expenses', 'mealAdjustments', 'mealOverrides', 'mealDays'];
+  const names = ['expenses', 'mealOverrides', 'mealDays'];
   const snaps = await Promise.all(names.map(name => getDocs(query(collection(db, name), where('monthId', '==', monthId)))));
   return {
     expenses: snaps[0].docs.map(item => ({ id: item.id, ...item.data() })),
-    adjustments: snaps[1].docs.map(item => ({ id: item.id, ...item.data() })),
-    overrides: snaps[2].docs.map(item => ({ id: item.id, ...item.data() })),
-    mealDays: snaps[3].docs.map(item => ({ id: item.id, ...item.data() }))
+    overrides: snaps[1].docs.map(item => ({ id: item.id, ...item.data() })),
+    mealDays: snaps[2].docs.map(item => ({ id: item.id, ...item.data() }))
   };
 }
 
