@@ -48,7 +48,7 @@ let unsubMonths = null;
 let unsubCurrentMonthData = null;
 let fullDataStartedForUid = null;
 
-const emptyMonthData = () => ({ expenses: [], adjustments: [], overrides: [], mealDays: [] });
+const emptyMonthData = () => ({ expenses: [], overrides: [], mealDays: [] });
 
 const state = {
   authReady: false,
@@ -217,8 +217,7 @@ async function setAbsoluteMeal(memberId, date, count) {
   const month = monthById(date.slice(0, 7));
   if (!month || month.status !== 'open') throw new Error('This month is finalized.');
   if (!month.activeMemberIds?.includes(memberId)) throw new Error('This member is not part of the selected month.');
-  const data = monthData(month.id);
-  const base = baselineMealCount(memberId, date, month, data.adjustments);
+  const base = baselineMealCount(memberId, date, month);
   await setMealOverride(db, state.profile, memberId, date, count, base);
 }
 
@@ -227,7 +226,7 @@ async function quickMeal(delta, date = todayISO()) {
   if (!month || month.status !== 'open') throw new Error('This month is finalized.');
   const data = state.currentMonthData;
   if (isMessOff(date, data.mealDays)) throw new Error('Meals are off for everyone today.');
-  const current = mealsForMemberOnDate(state.profile.memberId, date, month, data.overrides, data.mealDays, data.adjustments);
+  const current = mealsForMemberOnDate(state.profile.memberId, date, month, data.overrides, data.mealDays);
   const next = current + Number(delta);
   if (next < 0) throw new Error('Meal count cannot go below zero.');
   await setAbsoluteMeal(state.profile.memberId, date, next);
@@ -257,7 +256,7 @@ function openMealModal(date = todayISO(), monthId = null) {
   const month = monthById(targetMonthId);
   const data = monthData(targetMonthId);
   const targetDate = date.slice(0, 7) === targetMonthId ? date : `${targetMonthId}-01`;
-  const count = personalMealCountOnDate(state.profile.memberId, targetDate, month, data.overrides, data.adjustments);
+  const count = personalMealCountOnDate(state.profile.memberId, targetDate, month, data.overrides);
   state.modal = {
     type: 'meal', monthId: targetMonthId, date: targetDate, count,
     messOff: isMessOff(targetDate, data.mealDays)
@@ -430,7 +429,7 @@ root.addEventListener('change', async event => {
     const month = monthById(state.modal.monthId);
     const data = monthData(state.modal.monthId);
     state.modal.date = target.value;
-    state.modal.count = personalMealCountOnDate(state.profile.memberId, target.value, month, data.overrides, data.adjustments);
+    state.modal.count = personalMealCountOnDate(state.profile.memberId, target.value, month, data.overrides);
     state.modal.messOff = isMessOff(target.value, data.mealDays);
     setState();
     return;
