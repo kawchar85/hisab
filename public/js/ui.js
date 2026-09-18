@@ -103,6 +103,23 @@ function simpleSummary(rows) {
   return `<div class="summary-list">${rows.map(([label, value, cls = '']) => `<div><span>${escapeHtml(label)}</span><strong class="${cls}">${escapeHtml(value)}</strong></div>`).join('')}</div>`;
 }
 
+function todayMealSummary(state, month, data, date) {
+  const rows = (month.activeMemberIds || []).map(memberId => {
+    const member = state.members.find(item => item.id === memberId);
+    return {
+      memberId,
+      name: member?.name || memberId,
+      count: mealsForMemberOnDate(memberId, date, month, data.overrides, data.mealDays)
+    };
+  });
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+
+  return `<div class="today-meal-summary">
+    <div class="today-total-row"><span>Today's total</span><strong>${total}</strong></div>
+    <div class="today-member-grid">${rows.map(row => `<div class="today-member-item ${row.memberId === state.profile.memberId ? 'mine' : ''} ${row.count === 0 ? 'zero' : ''}"><span>${escapeHtml(row.name)}</span><strong>${row.count}</strong></div>`).join('')}</div>
+  </div>`;
+}
+
 function homePage(state) {
   const month = currentMonth(state);
   const member = currentMember(state);
@@ -129,6 +146,7 @@ function homePage(state) {
         <strong>${todayMeals}</strong>
         <button class="count-button" data-action="quick-meal" data-delta="1" ${!isOpen || offToday ? 'disabled' : ''}>${icon('plus')}</button>
       </div>
+      ${todayMealSummary(state, month, data, today)}
       <button class="text-action" data-action="open-meal-set" ${!isOpen ? 'disabled' : ''}>${icon('calendar')} Change another date ${icon('chevron')}</button>
     </section>
 
