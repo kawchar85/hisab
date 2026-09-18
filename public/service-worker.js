@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hisab-v1.1';
+const CACHE_NAME = 'hisab-v1.2';
 const APP_ASSETS = [
   '/',
   '/index.html',
