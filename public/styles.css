@@ -82,6 +82,17 @@ button:disabled { opacity: .42; cursor: not-allowed !important; }
 .meal-control > strong, .modal-counter > strong { font-size: 52px; line-height: 1; letter-spacing: -.05em; min-width: 54px; text-align: center; }
 .count-button { width: 48px; height: 48px; border-radius: 50%; background: white; border: 1px solid var(--line); display: grid; place-items: center; cursor: pointer; }
 .count-button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.today-meal-summary { border-top: 1px solid var(--line); padding: 12px 0 13px; }
+.today-total-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.today-total-row span { color: var(--muted); font-size: 13px; font-weight: 650; }
+.today-total-row strong { font-size: 18px; line-height: 1; }
+.today-member-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.today-member-item { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); padding: 6px 8px; font-size: 12px; }
+.today-member-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.today-member-item strong { flex: 0 0 auto; font-size: 12px; }
+.today-member-item.mine { background: var(--primary-soft); border-color: #c9e8e4; }
+.today-member-item.mine span, .today-member-item.mine strong { color: var(--primary-strong); }
+.today-member-item.zero:not(.mine) { opacity: .62; }
 .text-action { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--primary); font-weight: 750; padding: 14px 0 0; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
 .text-action .icon:last-child { width: 16px; }
 
@@ -207,4 +218,8 @@ label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-w
   .day-cell { border-radius: 9px; padding: 6px 2px; }
   .day-cell strong { font-size: 15px; }
   .nav-item { width: 20vw; }
+}
+
+@media (max-width: 360px) {
+  .today-member-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
