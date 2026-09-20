@@ -5,7 +5,7 @@ import {
   signOut
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import { ADMIN_EMAIL } from './js/constants.js';
-import { currentMonthId, todayISO } from './js/date.js';
+import { currentMonthId, datesBetween, todayISO } from './js/date.js';
 import {
   baselineMealCount,
   isMessOff,
@@ -221,6 +221,33 @@ async function setAbsoluteMeal(memberId, date, count) {
   await setMealOverride(db, state.profile, memberId, date, count, base);
 }
 
+async function setMealRange(memberId, startDate, endDate, count) {
+  const monthId = startDate.slice(0, 7);
+  if (endDate.slice(0, 7) !== monthId) throw new Error('The range must stay within one month.');
+
+  const month = monthById(monthId);
+  if (!month || month.status !== 'open') throw new Error('This month is finalized.');
+  if (!month.activeMemberIds?.includes(memberId)) throw new Error('This member is not part of the selected month.');
+
+  const dates = datesBetween(startDate, endDate);
+  if (!dates.length) throw new Error('Choose a valid date range.');
+
+  const data = monthData(monthId);
+  const existingDates = new Set(
+    data.overrides
+      .filter(item => item.memberId === memberId)
+      .map(item => item.date)
+  );
+
+  await Promise.all(dates.map(date => {
+    const base = baselineMealCount(memberId, date, month);
+    if (Number(count) === base && !existingDates.has(date)) return Promise.resolve();
+    return setMealOverride(db, state.profile, memberId, date, count, base);
+  }));
+
+  return dates.length;
+}
+
 async function quickMeal(delta, date = todayISO()) {
   const month = currentMonth();
   if (!month || month.status !== 'open') throw new Error('This month is finalized.');
@@ -260,6 +287,18 @@ function openMealModal(date = todayISO(), monthId = null) {
   state.modal = {
     type: 'meal', monthId: targetMonthId, date: targetDate, count,
     messOff: isMessOff(targetDate, data.mealDays)
+  };
+  setState();
+}
+
+function openMealRangeModal(monthId = currentMonthId()) {
+  const startDate = monthId === currentMonthId() ? todayISO() : `${monthId}-01`;
+  state.modal = {
+    type: 'meal-range',
+    monthId,
+    startDate,
+    endDate: startDate,
+    count: 0
   };
   setState();
 }
@@ -309,6 +348,9 @@ async function handleAction(target) {
           (el.dataset.monthId && el.dataset.monthId !== currentMonthId()) ? `${el.dataset.monthId}-01` : todayISO(),
           el.dataset.monthId || currentMonthId()
         );
+        break;
+      case 'open-meal-range':
+        openMealRangeModal(el.dataset.monthId || currentMonthId());
         break;
       case 'adjust-date':
         openMealModal(el.dataset.date, el.dataset.monthId);
@@ -434,6 +476,17 @@ root.addEventListener('change', async event => {
     setState();
     return;
   }
+  if (target.dataset.action === 'meal-range-start' && state.modal?.type === 'meal-range') {
+    state.modal.startDate = target.value;
+    if (state.modal.endDate < state.modal.startDate) state.modal.endDate = state.modal.startDate;
+    setState();
+    return;
+  }
+  if (target.dataset.action === 'meal-range-end' && state.modal?.type === 'meal-range') {
+    state.modal.endDate = target.value;
+    setState();
+    return;
+  }
   if (target.dataset.action === 'mess-off-date' && state.modal?.type === 'mess-off') {
     const data = monthData(state.modal.monthId);
     state.modal.date = target.value;
@@ -474,6 +527,23 @@ root.addEventListener('submit', async event => {
       if (!Number.isInteger(count) || count < 0 || count > 20) throw new Error('Meal count must be a whole number from 0 to 20.');
       await setAbsoluteMeal(state.profile.memberId, values.date, count);
       showToast('Meal count saved.');
+      closeModal();
+      return;
+    }
+
+    if (form.dataset.form === 'meal-range') {
+      const values = Object.fromEntries(new FormData(form).entries());
+      const count = Number(values.count);
+      if (!Number.isInteger(count) || count < 0 || count > 20) throw new Error('Meal count must be a whole number from 0 to 20.');
+      if (values.startDate.slice(0, 7) !== state.modal.monthId || values.endDate.slice(0, 7) !== state.modal.monthId) {
+        throw new Error('The range must stay in the selected month.');
+      }
+      const dates = datesBetween(values.startDate, values.endDate);
+      if (!dates.length) throw new Error('Choose an end date on or after the start date.');
+      if (dates.length > 3 && !confirm(`Set your meal count to ${count} for ${dates.length} days?`)) return;
+      form.querySelector('button[type="submit"]').disabled = true;
+      const updatedDays = await setMealRange(state.profile.memberId, values.startDate, values.endDate, count);
+      showToast(`Meal count updated for ${updatedDays} ${updatedDays === 1 ? 'day' : 'days'}.`);
       closeModal();
       return;
     }
