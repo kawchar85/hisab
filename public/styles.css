@@ -93,6 +93,11 @@ button:disabled { opacity: .42; cursor: not-allowed !important; }
 .today-member-item.mine { background: var(--primary-soft); border-color: #c9e8e4; }
 .today-member-item.mine span, .today-member-item.mine strong { color: var(--primary-strong); }
 .today-member-item.zero:not(.mine) { opacity: .62; }
+.meal-action-row { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+.meal-action-button { min-width: 0; border: 0; background: transparent; color: var(--primary); font-weight: 750; font-size: 13px; padding: 14px 8px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.meal-action-button + .meal-action-button { border-left: 1px solid var(--line); }
+.meal-action-button .icon { width: 18px; height: 18px; flex: 0 0 auto; }
+.meal-action-button:hover:not(:disabled) { color: var(--primary-strong); }
 .text-action { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--primary); font-weight: 750; padding: 14px 0 0; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
 .text-action .icon:last-child { width: 16px; }
 
@@ -188,6 +193,9 @@ label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-w
 .segmented span { padding: 9px; border-radius: 9px; text-align: center; color: var(--muted); }
 .segmented input:checked + span { background: white; color: var(--primary); font-weight: 800; box-shadow: 0 1px 5px rgba(0,0,0,.05); }
 .modal-counter { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 12px 0; }
+.range-count-label { margin-bottom: -5px; font-size: 13px; font-weight: 650; }
+.range-day-count { border: 1px solid var(--line); background: var(--surface-soft); border-radius: 12px; padding: 10px 12px; text-align: center; color: var(--muted); font-size: 13px; }
+.range-day-count strong { color: var(--text); }
 .status-panel { border: 1px solid var(--line); background: var(--surface-soft); border-radius: 13px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
 .status-panel span { color: var(--muted); font-size: 12px; }
 
@@ -222,4 +230,5 @@ label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-w
 
 @media (max-width: 360px) {
   .today-member-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .meal-action-button { font-size: 12px; padding-left: 5px; padding-right: 5px; }
 }
