@@ -109,6 +109,7 @@ button:disabled { opacity: .42; cursor: not-allowed !important; }
 
 .section-head { margin: 30px 2px 10px; display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .section-head h2 { margin: 4px 0 0; font-size: 23px; letter-spacing: -.035em; }
+.section-total { color: var(--text); font-size: 14px; white-space: nowrap; }
 .summary-list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .summary-list > div { min-height: 50px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
 .summary-list > div:last-child { border-bottom: 0; }
@@ -155,12 +156,39 @@ button:disabled { opacity: .42; cursor: not-allowed !important; }
 .settlement-cards { display: flex; flex-direction: column; gap: 9px; }
 .settlement-card { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 15px; }
 .settlement-card.mine { border-color: var(--primary); }
+.settlement-card-button { width: 100%; text-align: left; cursor: pointer; }
+.settlement-card-button:hover { border-color: var(--primary); box-shadow: 0 5px 18px rgba(18, 45, 39, .05); }
+.settlement-card-button:focus-visible { outline: 3px solid var(--primary-soft); outline-offset: 2px; }
 .settlement-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .settlement-head > div { display: flex; align-items: center; gap: 7px; }
+.settlement-result { display: flex; align-items: center; gap: 5px; }
+.settlement-result .icon { width: 16px; height: 16px; color: var(--muted); }
 .you-pill { background: var(--primary-soft); color: var(--primary); padding: 3px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; }
 .settlement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 12px; margin-top: 12px; }
 .settlement-grid span { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
 .settlement-grid b { color: var(--text); }
+
+.back-link { border: 0; background: transparent; color: var(--primary); display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; font-weight: 750; cursor: pointer; }
+.back-link .icon { width: 18px; height: 18px; }
+.member-detail-heading { margin-top: 19px; }
+.member-detail-heading h1 { margin: 5px 0 2px; font-size: clamp(32px, 8vw, 42px); line-height: 1.04; letter-spacing: -.045em; }
+.member-detail-heading p { margin: 0; color: var(--muted); }
+.member-balance { margin-top: 9px; background: var(--primary-soft); border: 1px solid #c9e8e4; border-radius: 14px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.member-balance span { color: var(--primary-strong); font-size: 13px; font-weight: 700; }
+.member-balance strong { color: var(--primary-strong); font-size: 18px; text-align: right; }
+.member-detail-calendar { background: white; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 12px 12px; }
+.member-detail-calendar .calendar-weekdays { margin-top: 14px; }
+.member-detail-day { cursor: default; }
+.member-detail-day.off small { color: var(--primary); }
+.member-payment-list { background: white; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.member-payment-row { min-height: 56px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+.member-payment-row:last-child { border-bottom: 0; }
+.member-payment-row > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.member-payment-row > div strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-payment-row small { color: var(--muted); font-size: 11px; }
+.member-payment-row > strong { flex: 0 0 auto; }
+.member-payment-empty { border: 1px dashed var(--line); border-radius: 14px; padding: 18px; color: var(--muted); text-align: center; font-size: 13px; }
+
 .trend-card { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-top: 9px; }
 .trend-title { display: flex; justify-content: space-between; align-items: center; }
 .trend-title span { color: var(--primary); font-weight: 800; }
@@ -225,6 +253,8 @@ label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-w
   .quick-card strong { font-size: 15px; }
   .day-cell { border-radius: 9px; padding: 6px 2px; }
   .day-cell strong { font-size: 15px; }
+  .member-detail-calendar { padding-left: 8px; padding-right: 8px; }
+  .member-payment-row { padding-left: 12px; padding-right: 12px; }
   .nav-item { width: 20vw; }
 }
 
