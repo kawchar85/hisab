@@ -50,6 +50,26 @@ let fullDataStartedForUid = null;
 
 const emptyMonthData = () => ({ expenses: [], overrides: [], mealDays: [] });
 
+function parseRouteHash() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (parts[0] === 'member-detail') {
+    return {
+      route: 'member-detail',
+      monthId: parts[1] || currentMonthId(),
+      memberId: parts[2] ? decodeURIComponent(parts[2]) : null
+    };
+  }
+
+  const allowed = ['home', 'expenses', 'meals', 'settlement', 'admin'];
+  return {
+    route: allowed.includes(parts[0]) ? parts[0] : 'home',
+    monthId: null,
+    memberId: null
+  };
+}
+
+const initialRoute = parseRouteHash();
+
 const state = {
   authReady: false,
   user: null,
@@ -65,11 +85,13 @@ const state = {
   membersLoaded: false,
   monthsLoaded: false,
   dataReady: false,
-  route: location.hash.replace('#/', '') || 'home',
+  route: initialRoute.route,
   expenseFilter: 'all',
   expenseMonthId: currentMonthId(),
   mealMonthId: currentMonthId(),
-  settlementMonthId: currentMonthId(),
+  settlementMonthId: initialRoute.monthId || currentMonthId(),
+  settlementMemberId: initialRoute.memberId,
+  settlementScrollY: 0,
   modal: null,
   fatalError: null
 };
@@ -136,6 +158,9 @@ function startFullData(profile) {
     normalizeSelectedMonths();
     state.monthsLoaded = true;
     setState();
+    if (state.route === 'member-detail' && state.settlementMonthId !== currentMonthId()) {
+      loadHistoricalMonth(state.settlementMonthId).catch(handleDataError);
+    }
   }, handleDataError);
 
   unsubCurrentMonthData = subscribeMonthData(db, currentMonthId(), data => {
@@ -162,7 +187,7 @@ async function signIn() {
 }
 
 async function loadHistoricalMonth(monthId) {
-  if (!monthId || monthId === currentMonthId() || state.loadedMonthData[monthId]) return;
+  if (!monthId || monthId === currentMonthId() || state.loadedMonthData[monthId] || state.monthLoading === monthId) return;
   state.monthLoading = monthId;
   setState();
   try {
@@ -365,6 +390,22 @@ async function handleAction(target) {
           el.dataset.monthId || currentMonthId()
         );
         break;
+      case 'open-member-detail': {
+        const memberId = el.dataset.memberId;
+        const monthId = el.dataset.monthId || state.settlementMonthId || currentMonthId();
+        if (!memberId) return true;
+        state.settlementScrollY = window.scrollY;
+        state.settlementMemberId = memberId;
+        state.settlementMonthId = monthId;
+        state.route = 'member-detail';
+        location.hash = `#/member-detail/${monthId}/${encodeURIComponent(memberId)}`;
+        await loadHistoricalMonth(monthId);
+        setState();
+        break;
+      }
+      case 'back-settlement':
+        location.hash = '#/settlement';
+        break;
       case 'expense-filter':
         state.expenseFilter = el.dataset.filter || 'all';
         setState();
@@ -431,6 +472,7 @@ root.addEventListener('click', async event => {
   const routeButton = event.target.closest('[data-route]');
   if (routeButton) {
     state.route = routeButton.dataset.route;
+    if (state.route !== 'member-detail') state.settlementMemberId = null;
     location.hash = `#/${state.route}`;
     if (state.route === 'settlement') loadAllMonthsForTrends();
     setState();
@@ -591,12 +633,23 @@ root.addEventListener('submit', async event => {
   }
 });
 
-window.addEventListener('hashchange', () => {
-  const route = location.hash.replace('#/', '') || 'home';
-  const allowed = ['home', 'expenses', 'meals', 'settlement', 'admin'];
-  state.route = allowed.includes(route) ? route : 'home';
-  if (state.route === 'settlement') loadAllMonthsForTrends();
+window.addEventListener('hashchange', async () => {
+  const previousRoute = state.route;
+  const parsed = parseRouteHash();
+  state.route = parsed.route;
+  if (parsed.monthId) state.settlementMonthId = parsed.monthId;
+  state.settlementMemberId = parsed.route === 'member-detail' ? parsed.memberId : null;
+
+  if (state.route === 'member-detail') {
+    await loadHistoricalMonth(state.settlementMonthId);
+  } else if (state.route === 'settlement') {
+    loadAllMonthsForTrends();
+  }
+
   setState();
+  if (previousRoute === 'member-detail' && state.route === 'settlement') {
+    requestAnimationFrame(() => window.scrollTo(0, state.settlementScrollY || 0));
+  }
 });
 
 async function start() {
