@@ -48,6 +48,7 @@ function icon(name) {
     calendar: '<path d="M5 5h14v15H5zM8 3v4M16 3v4M5 10h14"/>',
     range: '<path d="M4 7h16M4 17h16M7 4 4 7l3 3M17 14l3 3-3 3"/>',
     chevron: '<path d="m9 6 6 6-6 6"/>',
+    back: '<path d="m15 6-6 6 6 6"/>',
     logout: '<path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/>'
   };
   return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${icons[name] || ''}</svg>`;
@@ -75,7 +76,8 @@ function navItem(route, label, iconName, active) {
 }
 
 function bottomNav(state) {
-  return `<nav class="bottom-nav">${navItem('home', 'Home', 'home', state.route === 'home')}${navItem('expenses', 'Expenses', 'expense', state.route === 'expenses')}${navItem('meals', 'Meals', 'meal', state.route === 'meals')}${navItem('settlement', 'Settlement', 'settle', state.route === 'settlement')}${state.profile.role === 'admin' ? navItem('admin', 'Admin', 'admin', state.route === 'admin') : ''}</nav>`;
+  const settlementActive = state.route === 'settlement' || state.route === 'member-detail';
+  return `<nav class="bottom-nav">${navItem('home', 'Home', 'home', state.route === 'home')}${navItem('expenses', 'Expenses', 'expense', state.route === 'expenses')}${navItem('meals', 'Meals', 'meal', state.route === 'meals')}${navItem('settlement', 'Settlement', 'settle', settlementActive)}${state.profile.role === 'admin' ? navItem('admin', 'Admin', 'admin', state.route === 'admin') : ''}</nav>`;
 }
 
 function currentMonth(state) {
@@ -238,7 +240,94 @@ function settlementPage(state) {
   const data = monthDataFor(state, monthId);
   const settlement = buildSettlement({ month, members: state.members, ...data });
   const loading = state.monthLoading === monthId && monthId !== currentMonthId();
-  return `<section class="page"><div class="page-title-row"><div><span class="eyebrow">SETTLEMENT</span><h1>Monthly Settlement</h1></div>${month?.status === 'closed' ? '<span class="subtle-badge">Finalized</span>' : ''}</div>${monthSelector(state, monthId, 'settlement-month')}${loading ? '<div class="inline-loading"><div class="spinner"></div></div>' : `${simpleSummary([['Total bazar', money(settlement.totalBazar)], ['Total utility', money(settlement.totalUtility)], ['Total meals', String(settlement.totalMeals)], ['Meal rate', money(settlement.mealRate)]])}<div class="section-head"><div><span class="eyebrow">MEMBERS</span><h2>Breakdown</h2></div></div><div class="settlement-cards">${settlement.rows.map(row => `<article class="settlement-card ${row.memberId === state.profile.memberId ? 'mine' : ''}"><div class="settlement-head"><div><strong>${escapeHtml(row.name)}</strong>${row.memberId === state.profile.memberId ? '<span class="you-pill">You</span>' : ''}</div><strong>${escapeHtml(balanceText(row.finalPayable))}</strong></div><div class="settlement-grid"><span>Meals <b>${row.finalMeals}</b></span><span>Rent <b>${money(row.rent)}</b></span><span>Bazar paid <b>${money(row.bazarPaid)}</b></span><span>Utility paid <b>${money(row.utilityPaid)}</b></span><span>Food cost <b>${money(row.foodCost)}</b></span><span>Utility share <b>${money(row.utilityShare)}</b></span></div></article>`).join('')}</div>${simpleSummary([['Total rent', money(totalRent(settlement))], ['Settlement check', money(settlement.rows.reduce((sum, row) => sum + row.finalPayable, 0))]])}${trendsSection(state)}`}</section>`;
+  return `<section class="page"><div class="page-title-row"><div><span class="eyebrow">SETTLEMENT</span><h1>Monthly Settlement</h1></div>${month?.status === 'closed' ? '<span class="subtle-badge">Finalized</span>' : ''}</div>${monthSelector(state, monthId, 'settlement-month')}${loading ? '<div class="inline-loading"><div class="spinner"></div></div>' : `${simpleSummary([['Total bazar', money(settlement.totalBazar)], ['Total utility', money(settlement.totalUtility)], ['Total meals', String(settlement.totalMeals)], ['Meal rate', money(settlement.mealRate)]])}<div class="section-head"><div><span class="eyebrow">MEMBERS</span><h2>Breakdown</h2></div></div><div class="settlement-cards">${settlement.rows.map(row => `<button type="button" class="settlement-card settlement-card-button ${row.memberId === state.profile.memberId ? 'mine' : ''}" data-action="open-member-detail" data-member-id="${escapeHtml(row.memberId)}" data-month-id="${escapeHtml(monthId)}"><div class="settlement-head"><div><strong>${escapeHtml(row.name)}</strong>${row.memberId === state.profile.memberId ? '<span class="you-pill">You</span>' : ''}</div><div class="settlement-result"><strong>${escapeHtml(balanceText(row.finalPayable))}</strong>${icon('chevron')}</div></div><div class="settlement-grid"><span>Meals <b>${row.finalMeals}</b></span><span>Rent <b>${money(row.rent)}</b></span><span>Bazar paid <b>${money(row.bazarPaid)}</b></span><span>Utility paid <b>${money(row.utilityPaid)}</b></span><span>Food cost <b>${money(row.foodCost)}</b></span><span>Utility share <b>${money(row.utilityShare)}</b></span></div></button>`).join('')}</div>${simpleSummary([['Total rent', money(totalRent(settlement))], ['Settlement check', money(settlement.rows.reduce((sum, row) => sum + row.finalPayable, 0))]])}${trendsSection(state)}`}</section>`;
+}
+
+function memberCalendarCells(memberId, month, data) {
+  const daysCount = Number(lastDateOfMonth(month.id).slice(8, 10));
+  const firstWeekday = weekdayOfISO(`${month.id}-01`);
+  const leading = Array.from({ length: firstWeekday }, () => '<div class="day-cell blank"></div>').join('');
+  const today = todayISO();
+  const days = Array.from({ length: daysCount }, (_, idx) => `${month.id}-${String(idx + 1).padStart(2, '0')}`);
+
+  return leading + days.map(date => {
+    const off = isMessOff(date, data.mealDays);
+    const count = mealsForMemberOnDate(memberId, date, month, data.overrides, data.mealDays);
+    const base = baselineMealCount(memberId, date, month);
+    const personal = personalMealCountOnDate(memberId, date, month, data.overrides);
+    const custom = personal !== base;
+    return `<div class="day-cell member-detail-day ${date === today ? 'today' : ''} ${off ? 'off' : ''}"><span>${Number(date.slice(8))}</span><strong>${off ? 'OFF' : count}</strong><small>${custom ? 'set' : '&nbsp;'}</small></div>`;
+  }).join('');
+}
+
+function memberPaymentList(items, type) {
+  const filtered = items
+    .filter(item => item.type === type)
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAtMs || 0) - (a.createdAtMs || 0));
+
+  if (!filtered.length) {
+    return `<div class="member-payment-empty">No ${type === 'bazar' ? 'bazar' : 'utility'} payments this month.</div>`;
+  }
+
+  return `<div class="member-payment-list">${filtered.map(item => `<div class="member-payment-row"><div><strong>${escapeHtml(item.note?.trim() || (type === 'bazar' ? 'Bazar' : 'Utility'))}</strong><small>${escapeHtml(prettyDate(item.date, { withYear: false }))}</small></div><strong>${money(item.amount)}</strong></div>`).join('')}</div>`;
+}
+
+function memberDetailPage(state) {
+  const monthId = state.settlementMonthId || currentMonthId();
+  const memberId = state.settlementMemberId;
+  const month = state.months.find(m => m.id === monthId);
+  const loading = state.monthLoading === monthId && monthId !== currentMonthId();
+
+  if (!memberId) {
+    return `<section class="page"><button class="back-link" data-action="back-settlement">${icon('back')} Settlement</button><div class="empty-state"><strong>No member selected.</strong><span>Return to Settlement and choose a member.</span></div></section>`;
+  }
+  if (!month) {
+    return `<section class="page"><button class="back-link" data-action="back-settlement">${icon('back')} Settlement</button><div class="empty-state"><strong>Month not found.</strong></div></section>`;
+  }
+  if (loading) {
+    return `<section class="page"><button class="back-link" data-action="back-settlement">${icon('back')} ${escapeHtml(monthLabel(monthId))} Settlement</button><div class="inline-loading"><div class="spinner"></div></div></section>`;
+  }
+
+  const data = monthDataFor(state, monthId);
+  const settlement = buildSettlement({ month, members: state.members, ...data });
+  const row = settlement.rows.find(item => item.memberId === memberId);
+  const member = state.members.find(item => item.id === memberId) || (row ? { name: row.name } : null);
+
+  if (!row || !member) {
+    return `<section class="page"><button class="back-link" data-action="back-settlement">${icon('back')} ${escapeHtml(monthLabel(monthId))} Settlement</button><div class="empty-state"><strong>Member not found in this month.</strong></div></section>`;
+  }
+
+  const memberExpenses = data.expenses.filter(item => item.memberId === memberId);
+
+  return `<section class="page member-detail-page">
+    <button class="back-link" data-action="back-settlement">${icon('back')} ${escapeHtml(monthLabel(monthId))} Settlement</button>
+    <div class="member-detail-heading"><span class="eyebrow">MEMBER DETAIL</span><h1>${escapeHtml(member.name)}</h1><p>${escapeHtml(monthLabel(monthId))}</p></div>
+
+    <div class="section-head"><div><span class="eyebrow">SUMMARY</span><h2>Settlement</h2></div></div>
+    ${simpleSummary([
+      ['Meals', String(row.finalMeals)],
+      ['Rent', money(row.rent)],
+      ['Bazar paid', money(row.bazarPaid)],
+      ['Utility paid', money(row.utilityPaid)],
+      ['Food cost', money(row.foodCost)],
+      ['Utility share', money(row.utilityShare)]
+    ])}
+    <div class="member-balance"><span>Final balance</span><strong>${escapeHtml(balanceText(row.finalPayable))}</strong></div>
+
+    <div class="section-head"><div><span class="eyebrow">MEALS</span><h2>Calendar</h2></div><strong class="section-total">${row.finalMeals} total</strong></div>
+    <div class="member-detail-calendar">
+      <div class="calendar-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="calendar-grid">${memberCalendarCells(memberId, month, data)}</div>
+      <p class="calendar-help">“set” marks a personal override. “OFF” means mess meals were off for everyone.</p>
+    </div>
+
+    <div class="section-head"><div><span class="eyebrow">BAZAR</span><h2>Payments</h2></div><strong class="section-total">${money(row.bazarPaid)}</strong></div>
+    ${memberPaymentList(memberExpenses, 'bazar')}
+
+    <div class="section-head"><div><span class="eyebrow">UTILITY</span><h2>Payments</h2></div><strong class="section-total">${money(row.utilityPaid)}</strong></div>
+    ${memberPaymentList(memberExpenses, 'utility')}
+  </section>`;
 }
 
 function sparkline(points, formatValue) {
@@ -323,7 +412,7 @@ function messOffModal(state) {
 }
 
 function appContent(state) {
-  const pages = { home: homePage, expenses: expensesPage, meals: mealsPage, settlement: settlementPage, admin: adminPage };
+  const pages = { home: homePage, expenses: expensesPage, meals: mealsPage, settlement: settlementPage, 'member-detail': memberDetailPage, admin: adminPage };
   const renderer = pages[state.route] || homePage;
   return `<main class="content">${renderer(state)}</main>${bottomNav(state)}${expenseModal(state)}${mealModal(state)}${mealRangeModal(state)}${messOffModal(state)}`;
 }
