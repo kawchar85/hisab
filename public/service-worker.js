@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hisab-v1.4';
+const CACHE_NAME = 'hisab-v1.5';
 const APP_ASSETS = [
   '/',
   '/index.html',
@@ -32,37 +32,47 @@ self.addEventListener('activate', event => {
   );
 });
 
+async function networkFirst(request, fallbackPath = null) {
+  try {
+    const response = await fetch(request, { cache: 'no-store' });
+    if (response.ok) {
+      const copy = response.clone();
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(fallbackPath || request, copy);
+    }
+    return response;
+  } catch (error) {
+    const cached = await caches.match(fallbackPath || request);
+    if (cached) return cached;
+    throw error;
+  }
+}
+
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   // Firebase Hosting reserves /__ for SDK/Auth configuration. Never intercept it.
-  if (url.pathname.startsWith('/__') || url.origin !== self.location.origin) {
+  if (
+    event.request.method !== 'GET'
+    || url.pathname.startsWith('/__')
+    || url.origin !== self.location.origin
+  ) {
     return;
   }
 
   if (event.request.mode === 'navigate') {
+    event.respondWith(networkFirst(event.request, '/index.html'));
+    return;
+  }
+
+  // Icons are immutable enough to prefer the local copy. App code/styles use
+  // network-first below so installed PWAs do not remain on an old deployment.
+  if (url.pathname.startsWith('/icons/')) {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('/index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
+      caches.match(event.request).then(cached => cached || networkFirst(event.request))
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      });
-    })
-  );
+  event.respondWith(networkFirst(event.request));
 });
