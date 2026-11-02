@@ -328,11 +328,33 @@ function openMealRangeModal(monthId = currentMonthId()) {
   setState();
 }
 
+async function setMessOffRange(startDate, endDate, messOff) {
+  const monthId = startDate.slice(0, 7);
+  if (endDate.slice(0, 7) !== monthId) throw new Error('The range must stay within one month.');
+
+  const month = monthById(monthId);
+  if (!month || month.status !== 'open') throw new Error('This month is finalized.');
+
+  const dates = datesBetween(startDate, endDate);
+  if (!dates.length) throw new Error('Choose a valid date range.');
+
+  await Promise.all(dates.map(date => setMessOff(db, state.profile, date, messOff)));
+  return dates.length;
+}
+
 function openMessOffModal(date = todayISO(), monthId = null) {
   const targetMonthId = monthId || date.slice(0, 7) || currentMonthId();
   const targetDate = date.slice(0, 7) === targetMonthId ? date : `${targetMonthId}-01`;
   const data = monthData(targetMonthId);
-  state.modal = { type: 'mess-off', monthId: targetMonthId, date: targetDate, messOff: isMessOff(targetDate, data.mealDays) };
+  state.modal = {
+    type: 'mess-off',
+    mode: 'single',
+    monthId: targetMonthId,
+    date: targetDate,
+    startDate: targetDate,
+    endDate: targetDate,
+    messOff: isMessOff(targetDate, data.mealDays)
+  };
   setState();
 }
 
@@ -529,10 +551,26 @@ root.addEventListener('change', async event => {
     setState();
     return;
   }
+  if (target.dataset.action === 'mess-off-mode' && state.modal?.type === 'mess-off') {
+    state.modal.mode = target.value === 'range' ? 'range' : 'single';
+    setState();
+    return;
+  }
   if (target.dataset.action === 'mess-off-date' && state.modal?.type === 'mess-off') {
     const data = monthData(state.modal.monthId);
     state.modal.date = target.value;
     state.modal.messOff = isMessOff(target.value, data.mealDays);
+    setState();
+    return;
+  }
+  if (target.dataset.action === 'mess-off-range-start' && state.modal?.type === 'mess-off') {
+    state.modal.startDate = target.value;
+    if (state.modal.endDate < state.modal.startDate) state.modal.endDate = state.modal.startDate;
+    setState();
+    return;
+  }
+  if (target.dataset.action === 'mess-off-range-end' && state.modal?.type === 'mess-off') {
+    state.modal.endDate = target.value;
     setState();
   }
 });
@@ -594,6 +632,31 @@ root.addEventListener('submit', async event => {
       const values = Object.fromEntries(new FormData(form).entries());
       const month = monthById(state.modal.monthId);
       if (!month || month.status !== 'open') throw new Error('This month is finalized.');
+
+      if (state.modal.mode === 'range') {
+        if (
+          values.startDate.slice(0, 7) !== state.modal.monthId
+          || values.endDate.slice(0, 7) !== state.modal.monthId
+        ) {
+          throw new Error('The range must stay in the selected month.');
+        }
+
+        const dates = datesBetween(values.startDate, values.endDate);
+        if (!dates.length) throw new Error('Choose an end date on or after the start date.');
+
+        const next = values.messOff === 'true';
+        const actionText = next ? 'Turn meals off' : 'Turn meals back on';
+        if (!confirm(`${actionText} for everyone for ${dates.length} ${dates.length === 1 ? 'day' : 'days'}?`)) return;
+
+        form.querySelector('button[type="submit"]').disabled = true;
+        const updatedDays = await setMessOffRange(values.startDate, values.endDate, next);
+        showToast(next
+          ? `Meals turned off for everyone for ${updatedDays} ${updatedDays === 1 ? 'day' : 'days'}.`
+          : `Meals turned back on for ${updatedDays} ${updatedDays === 1 ? 'day' : 'days'}.`);
+        closeModal();
+        return;
+      }
+
       const next = !state.modal.messOff;
       if (next && !confirm(`Turn meals off for everyone on ${values.date}?`)) return;
       await setMessOff(db, state.profile, values.date, next);
