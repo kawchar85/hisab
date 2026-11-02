@@ -231,7 +231,7 @@ function mealsPage(state) {
   if (!month) return `<section class="page"><div class="empty-state"><strong>No month available.</strong></div></section>`;
   const data = monthDataFor(state, monthId);
   const loading = state.monthLoading === monthId && monthId !== currentMonthId();
-  return `<section class="page"><div class="page-title-row"><div><span class="eyebrow">MEALS</span><h1>Meal Calendar</h1></div></div>${monthSelector(state, monthId, 'meal-month')}${month.status === 'open' ? `<div class="page-actions"><button class="btn secondary" data-action="open-meal-set" data-month-id="${month.id}">Set my meal</button><button class="btn secondary" data-action="open-mess-off" data-month-id="${month.id}">Mess off for a date</button></div>` : '<p class="info-note">This month is finalized and read-only.</p>'}${loading ? '<div class="inline-loading"><div class="spinner"></div></div>' : `<div class="calendar-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendar-grid">${calendarCells(state, month, data)}</div><p class="calendar-help">Tap a date to set your absolute meal count. “OFF” means meals are off for everyone that day.</p>`}</section>`;
+  return `<section class="page"><div class="page-title-row"><div><span class="eyebrow">MEALS</span><h1>Meal Calendar</h1></div></div>${monthSelector(state, monthId, 'meal-month')}${month.status === 'open' ? `<div class="page-actions"><button class="btn secondary" data-action="open-meal-set" data-month-id="${month.id}">Set my meal</button><button class="btn secondary" data-action="open-mess-off" data-month-id="${month.id}">Mess off</button></div>` : '<p class="info-note">This month is finalized and read-only.</p>'}${loading ? '<div class="inline-loading"><div class="spinner"></div></div>' : `<div class="calendar-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendar-grid">${calendarCells(state, month, data)}</div><p class="calendar-help">Tap a date to set your absolute meal count. “OFF” means meals are off for everyone that day.</p>`}</section>`;
 }
 
 function settlementPage(state) {
@@ -408,7 +408,38 @@ function messOffModal(state) {
   const modal = state.modal;
   if (!modal || modal.type !== 'mess-off') return '';
   const month = state.months.find(m => m.id === modal.monthId);
-  return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card" role="dialog" aria-modal="true"><div class="modal-head"><div><span class="eyebrow">ALL MEMBERS</span><h2>Mess meal status</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div><form data-form="mess-off"><label>Date<input class="input" type="date" name="date" data-action="mess-off-date" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.date)}" required></label><div class="status-panel"><span>Current status</span><strong>${modal.messOff ? 'Meals off for everyone' : 'Meals on'}</strong></div><button class="btn full ${modal.messOff ? 'secondary' : 'primary'}" type="submit" ${month?.status !== 'open' ? 'disabled' : ''}>${modal.messOff ? 'Turn meals back on' : 'Turn meals off for everyone'}</button></form></section></div>`;
+  const rangeDates = datesBetween(modal.startDate, modal.endDate);
+  const dayCount = rangeDates.length;
+  const dayLabel = `${dayCount} ${dayCount === 1 ? 'day' : 'days'}`;
+
+  return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card" role="dialog" aria-modal="true">
+    <div class="modal-head"><div><span class="eyebrow">ALL MEMBERS</span><h2>Mess meal status</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div>
+    <form data-form="mess-off">
+      <div class="segmented">
+        <label><input type="radio" name="mode" value="single" data-action="mess-off-mode" ${modal.mode !== 'range' ? 'checked' : ''}><span>Single date</span></label>
+        <label><input type="radio" name="mode" value="range" data-action="mess-off-mode" ${modal.mode === 'range' ? 'checked' : ''}><span>Date range</span></label>
+      </div>
+
+      ${modal.mode === 'range' ? `
+        <div class="two-col range-date-grid">
+          <label>From<input class="input" type="date" name="startDate" data-action="mess-off-range-start" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.startDate)}" required></label>
+          <label>To<input class="input" type="date" name="endDate" data-action="mess-off-range-end" min="${escapeHtml(modal.startDate)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.endDate)}" required></label>
+        </div>
+        <div class="range-count-label">Set status</div>
+        <div class="segmented">
+          <label><input type="radio" name="messOff" value="true" checked><span>Meals off</span></label>
+          <label><input type="radio" name="messOff" value="false"><span>Meals on</span></label>
+        </div>
+        <div class="range-day-count">${dayCount ? `Applies to <strong>${dayLabel}</strong>` : 'Choose an end date on or after the start date.'}</div>
+        <p class="helper">Personal meal settings are preserved underneath Mess Off.</p>
+        <button class="btn full primary" type="submit" ${!dayCount || month?.status !== 'open' ? 'disabled' : ''}>${dayCount ? `Apply to ${dayLabel}` : 'Apply'}</button>
+      ` : `
+        <label>Date<input class="input" type="date" name="date" data-action="mess-off-date" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.date)}" required></label>
+        <div class="status-panel"><span>Current status</span><strong>${modal.messOff ? 'Meals off for everyone' : 'Meals on'}</strong></div>
+        <button class="btn full ${modal.messOff ? 'secondary' : 'primary'}" type="submit" ${month?.status !== 'open' ? 'disabled' : ''}>${modal.messOff ? 'Turn meals back on' : 'Turn meals off for everyone'}</button>
+      `}
+    </form>
+  </section></div>`;
 }
 
 function appContent(state) {
