@@ -390,7 +390,21 @@ function mealModal(state) {
   const modal = state.modal;
   if (!modal || modal.type !== 'meal') return '';
   const month = state.months.find(m => m.id === modal.monthId);
-  return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card" role="dialog" aria-modal="true"><div class="modal-head"><div><span class="eyebrow">MY MEAL</span><h2>Set meal count</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div><form data-form="meal"><label>Date<input class="input" type="date" name="date" data-action="meal-modal-date" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.date)}" required></label>${modal.messOff ? '<div class="info-note">Meals are off for everyone on this date. Your personal setting is preserved but the effective count is 0 until Mess Off is cancelled.</div>' : ''}<div class="modal-counter"><button type="button" class="count-button" data-action="modal-meal-step" data-delta="-1" ${modal.count <= 0 ? 'disabled' : ''}>${icon('minus')}</button><strong>${modal.count}</strong><button type="button" class="count-button" data-action="modal-meal-step" data-delta="1">${icon('plus')}</button></div><input type="hidden" name="count" value="${modal.count}"><button class="btn full primary" type="submit" ${month?.status !== 'open' ? 'disabled' : ''}>Save</button></form></section></div>`;
+
+  return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card" role="dialog" aria-modal="true">
+    <div class="modal-head"><div><span class="eyebrow">MY MEAL</span><h2>Set meal count</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div>
+    <form data-form="meal">
+      <div class="segmented">
+        <label><input type="radio" name="mode" value="single" data-action="meal-mode" checked><span>Single date</span></label>
+        <label><input type="radio" name="mode" value="range" data-action="meal-mode"><span>Date range</span></label>
+      </div>
+      <label>Date<input class="input" type="date" name="date" data-action="meal-modal-date" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.date)}" required></label>
+      ${modal.messOff ? '<div class="info-note">Meals are off for everyone on this date. Your personal setting is preserved but the effective count is 0 until Mess Off is cancelled.</div>' : ''}
+      <div class="modal-counter"><button type="button" class="count-button" data-action="modal-meal-step" data-delta="-1" ${modal.count <= 0 ? 'disabled' : ''}>${icon('minus')}</button><strong>${modal.count}</strong><button type="button" class="count-button" data-action="modal-meal-step" data-delta="1">${icon('plus')}</button></div>
+      <input type="hidden" name="count" value="${modal.count}">
+      <button class="btn full primary" type="submit" ${month?.status !== 'open' ? 'disabled' : ''}>Save</button>
+    </form>
+  </section></div>`;
 }
 
 function mealRangeModal(state) {
@@ -401,7 +415,24 @@ function mealRangeModal(state) {
   const dayCount = rangeDates.length;
   const dayLabel = `${dayCount} ${dayCount === 1 ? 'day' : 'days'}`;
 
-  return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card" role="dialog" aria-modal="true"><div class="modal-head"><div><span class="eyebrow">MY MEAL</span><h2>Set meal range</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div><form data-form="meal-range"><div class="two-col range-date-grid"><label>From<input class="input" type="date" name="startDate" data-action="meal-range-start" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.startDate)}" required></label><label>To<input class="input" type="date" name="endDate" data-action="meal-range-end" min="${escapeHtml(modal.startDate)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.endDate)}" required></label></div><div class="range-count-label">Meal count</div><div class="modal-counter"><button type="button" class="count-button" data-action="modal-meal-step" data-delta="-1" ${modal.count <= 0 ? 'disabled' : ''}>${icon('minus')}</button><strong>${modal.count}</strong><button type="button" class="count-button" data-action="modal-meal-step" data-delta="1">${icon('plus')}</button></div><input type="hidden" name="count" value="${modal.count}"><div class="range-day-count">${dayCount ? `Applies to <strong>${dayLabel}</strong>` : 'Choose an end date on or after the start date.'}</div><button class="btn full primary" type="submit" ${!dayCount || month?.status !== 'open' ? 'disabled' : ''}>${dayCount ? `Apply to ${dayLabel}` : 'Apply'}</button></form></section></div>`;
+  return `<div class="modal-backdrop" data-modal-backdrop><section class="modal-card" role="dialog" aria-modal="true">
+    <div class="modal-head"><div><span class="eyebrow">MY MEAL</span><h2>Set meal count</h2></div><button class="close-button" type="button" data-action="close-modal" aria-label="Close">×</button></div>
+    <form data-form="meal-range">
+      <div class="segmented">
+        <label><input type="radio" name="mode" value="single" data-action="meal-mode"><span>Single date</span></label>
+        <label><input type="radio" name="mode" value="range" data-action="meal-mode" checked><span>Date range</span></label>
+      </div>
+      <div class="two-col range-date-grid">
+        <label>From<input class="input" type="date" name="startDate" data-action="meal-range-start" min="${monthStartISO(modal.monthId)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.startDate)}" required></label>
+        <label>To<input class="input" type="date" name="endDate" data-action="meal-range-end" min="${escapeHtml(modal.startDate)}" max="${lastDateOfMonth(modal.monthId)}" value="${escapeHtml(modal.endDate)}" required></label>
+      </div>
+      <div class="range-count-label">Meal count</div>
+      <div class="modal-counter"><button type="button" class="count-button" data-action="modal-meal-step" data-delta="-1" ${modal.count <= 0 ? 'disabled' : ''}>${icon('minus')}</button><strong>${modal.count}</strong><button type="button" class="count-button" data-action="modal-meal-step" data-delta="1">${icon('plus')}</button></div>
+      <input type="hidden" name="count" value="${modal.count}">
+      <div class="range-day-count">${dayCount ? `Applies to <strong>${dayLabel}</strong>` : 'Choose an end date on or after the start date.'}</div>
+      <button class="btn full primary" type="submit" ${!dayCount || month?.status !== 'open' ? 'disabled' : ''}>${dayCount ? `Apply to ${dayLabel}` : 'Apply'}</button>
+    </form>
+  </section></div>`;
 }
 
 function messOffModal(state) {
