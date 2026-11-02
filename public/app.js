@@ -310,7 +310,12 @@ function openMealModal(date = todayISO(), monthId = null) {
   const targetDate = date.slice(0, 7) === targetMonthId ? date : `${targetMonthId}-01`;
   const count = personalMealCountOnDate(state.profile.memberId, targetDate, month, data.overrides);
   state.modal = {
-    type: 'meal', monthId: targetMonthId, date: targetDate, count,
+    type: 'meal',
+    monthId: targetMonthId,
+    date: targetDate,
+    startDate: targetDate,
+    endDate: targetDate,
+    count,
     messOff: isMessOff(targetDate, data.mealDays)
   };
   setState();
@@ -531,6 +536,39 @@ root.addEventListener('change', async event => {
     setState();
     return;
   }
+  if (
+    target.dataset.action === 'meal-mode'
+    && (state.modal?.type === 'meal' || state.modal?.type === 'meal-range')
+  ) {
+    const monthId = state.modal.monthId;
+    const month = monthById(monthId);
+    const data = monthData(monthId);
+    const anchorDate = state.modal.date || state.modal.startDate || (monthId === currentMonthId() ? todayISO() : `${monthId}-01`);
+
+    if (target.value === 'range') {
+      state.modal = {
+        type: 'meal-range',
+        monthId,
+        startDate: anchorDate,
+        endDate: anchorDate,
+        count: Number(state.modal.count || 0)
+      };
+    } else {
+      state.modal = {
+        type: 'meal',
+        monthId,
+        date: anchorDate,
+        startDate: anchorDate,
+        endDate: anchorDate,
+        count: personalMealCountOnDate(state.profile.memberId, anchorDate, month, data.overrides),
+        messOff: isMessOff(anchorDate, data.mealDays)
+      };
+    }
+
+    setState();
+    return;
+  }
+
   if (target.dataset.action === 'meal-modal-date' && state.modal?.type === 'meal') {
     const month = monthById(state.modal.monthId);
     const data = monthData(state.modal.monthId);
